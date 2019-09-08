@@ -15,9 +15,9 @@ from apiclient import errors
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
-user_id = "xomarquez27@gmail.com"
+user_id = "xomarquez27@gmail.com" # Replace with your email address
 query = "From: Schwab Alerts"
-file_location = '/home/xavier/Desktop/Python/Schwab_Tweets/email_ids.txt'
+file_location = '/home/xavier/Desktop/Python/Schwab_Tweets/email_ids.txt' # Replace with path/to/your/folder/email_ids.txt
 
 
 def authorization():
