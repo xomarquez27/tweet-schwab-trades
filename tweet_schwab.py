@@ -111,7 +111,7 @@ def checker(encodedb64):
       encodedb64: Base64 string.
 
     Returns:
-      Base64 string.  
+      decoded Base64 string.  
     """
     overflow = (len(encodedb64) % 4)
     if (overflow != 0):
@@ -128,14 +128,12 @@ def parser(raw_string):
 
     Returns: Python string containing the email's formatted content ready to be tweeted.
     """
-
     content = str(urlsafe_b64decode(raw_string))
     date = content[content.find("ending") + 17 : content.find("ending") + 27] + "\n"
     relevant = content[content.find("Action") : content.find("Unit Price")+30]
     stripped = relevant.replace("\\r\\n", "\n").replace("\\r", " ").replace("\\", ".")
-    final = "Date of trade: " + date + stripped
-    return final
-
+    return "Date of trade: " + date + stripped
+    
 
 def hashtag(message):
     """Adds the $ sign to the symbol in the tweet so that the tweet appears
@@ -148,6 +146,7 @@ def hashtag(message):
     ticker = message.find("Symbol:") + 24
     tweet_ready = message[:ticker] + '$' + message[ticker:]
     return tweet_ready
+
 
 def twitter_auth():
 
@@ -169,7 +168,6 @@ def twitter_auth():
 
 def main():
     """Puts the previous functions into work by combining them to extract the email, parse it and tweet it."""
-
     # If email_ids.txt file does not exist i.e. first time running the program
     if not os.path.exists(file_location):    
         with open("email_ids.txt", "w") as file:
@@ -185,7 +183,6 @@ def main():
                     print(tweet)
                 else:
                     pass
-
                 file.write(msg_id["id"] + "\n")
     else:
         old_batch = []
@@ -219,9 +216,3 @@ if __name__ == '__main__':
     batch = ListMessagesMatchingQuery(key, "me", query)
     twitter = twitter_auth()
     main()
-
-    
-
-
-
-    
