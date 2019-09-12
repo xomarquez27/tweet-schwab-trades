@@ -102,7 +102,34 @@ def GetMessage(service, user_id, msg_id):
     print('An error occurred: %s' % error)
 
 
-def checker(encodedb64):
+class Status(object):
+    """docstring for Status"""
+
+    def __init__(self, date, action, quantity, asset, price):
+        self.date = date
+        self.action = action
+        self.quantity = quantity
+        self.asset = "$" + asset
+        self.price = price
+        self.message = message = "This tweet might have been automatically sent via code found here: \n" \
+                                 "github.com/xomarquez27/tweet-schwab-trades"
+
+
+    def __str__(self):
+        return f"{self.date}:\n"\
+                f"{self.action} {self.quantity} {self.asset}\n"\
+                f"{self.price} per contract. \n\n"\
+                f"{self.message}"
+
+
+def extractor(msg):
+    trade_time = msg["payload"]["headers"][1]["value"][-32:]
+    b64_string = msg["payload"]["parts"][0]["body"]["data"]
+
+    return (trade_time, b64_string)
+
+
+def b64_validator(*payload):
     """Checks if base64 string is a multiple of 4 and returns it
     unchanged if so, otherwise it will trim the tail end by the
     digits necessary to make the string a multiple of 4
@@ -111,41 +138,44 @@ def checker(encodedb64):
       encodedb64: Base64 string.
 
     Returns:
-      decoded Base64 string.  
+      decoded Base64 string.
     """
+    date, encodedb64 = payload
+
     overflow = (len(encodedb64) % 4)
     if (overflow != 0):
         trimmed = encodedb64[: len(encodedb64) - overflow]
         return trimmed
     else:
-        return encodedb64
+        return (date, encodedb64)
 
 
-def parser(raw_string):
+def parser(*raw_string):
     """Removes unnecessary characters from decoded base64 email content.
 
     Args: raw_string: Python string containing the email's content.
 
-    Returns: Python string containing the email's formatted content ready to be tweeted.
+    Returns: Python tuple of strings containing the email's formatted content for object creation.
     """
-    content = str(urlsafe_b64decode(raw_string))
-    date = content[content.find("ending") + 17 : content.find("ending") + 27] + "\n"
+    date = raw_string[0]
+    content = str(urlsafe_b64decode(raw_string[1]))
     relevant = content[content.find("Action") : content.find("Unit Price")+30]
     stripped = relevant.replace("\\r\\n", "\n").replace("\\r", " ").replace("\\", ".")
-    return "Date of trade: " + date + stripped
-    
+    data = ["Action:", "Quantity:", "Symbol:", "Unit Price:"]
+    raw_attributes = []
+    attributes = []
 
-def hashtag(message):
-    """Adds the $ sign to the symbol in the tweet so that the tweet appears
-    on searches for that particular symbol, e.g. $AMZN, $SPY, etc.
+    for item in data:
+        raw_attributes.append(stripped[stripped.find(item) + 24 : stripped.find(item) + 50])
 
-    Args: String to be tweeted.
+    # Clean attributes by removing '\n' and any other irrelevant text following after
+    for string in raw_attributes:
+        if "\n" in string:
+            attributes.append(string[:string.find("\n")])
+        else:
+            attributes.append(string)
 
-    Returns: String with $ sign before the ticker.
-    """ 
-    ticker = message.find("Symbol:") + 24
-    tweet_ready = message[:ticker] + '$' + message[ticker:]
-    return tweet_ready
+    return (date, *attributes)
 
 
 def twitter_auth():
@@ -169,18 +199,18 @@ def twitter_auth():
 def main():
     """Puts the previous functions into work by combining them to extract the email, parse it and tweet it."""
     # If email_ids.txt file does not exist i.e. first time running the program
-    if not os.path.exists(file_location):    
+    if not os.path.exists(file_location):
         with open("email_ids.txt", "w") as file:
             for msg_id in batch[0:6]:
                 message = GetMessage(key, "me", msg_id['id'])
                 if "Trade Notification" in message['snippet']:
-                    b64_string = message["payload"]["parts"][0]["body"]["data"]
-                    valid_b64 = checker(b64_string)
-                    content = parser(valid_b64)
-                    tweet = hashtag(content)
+                    raw_data = extractor(message)
+                    valid_b64 = b64_validator(*raw_data)
+                    content = parser(*valid_b64)
+                    tweet = Status(*content)
                     # Send to Twitter
                     twitter.update_status(tweet)
-                    print(tweet)
+                    #print(tweet)
                 else:
                     pass
                 file.write(msg_id["id"] + "\n")
@@ -188,17 +218,17 @@ def main():
         old_batch = []
         with open("email_ids.txt", "r") as file:
             for msg_id in file:
-                old_batch.append(msg_id)    
+                old_batch.append(msg_id)
             for msg_id in batch[4::-1]:
                 if msg_id in old_batch:
                     pass
                 else:
                     message = GetMessage(key, "me", msg_id['id'])
                     if "Trade Notification" in message['snippet']:
-                        b64_string = message["payload"]["parts"][0]["body"]["data"]
-                        valid_b64 = checker(b64_string)
-                        content = parser(valid_b64)
-                        tweet = hashtag(content)
+                        raw_data = extractor(message)
+                        valid_b64 = b64_validator(*raw_data)
+                        content = parser(*valid_b64)
+                        tweet = Status(*content)
                         # Send to Twitter
                         twitter.update_status(tweet)
                         print(tweet)
@@ -214,5 +244,6 @@ def main():
 if __name__ == '__main__':
     key = authorization()
     batch = ListMessagesMatchingQuery(key, "me", query)
+    payload = []
     twitter = twitter_auth()
     main()
