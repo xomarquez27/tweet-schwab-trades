@@ -3,6 +3,7 @@ import pickle
 import os.path
 import email
 import httplib2
+import logging
 import tweepy
 import json
 from base64 import urlsafe_b64decode
@@ -10,6 +11,10 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from apiclient import errors
+
+
+logging.basicConfig(filename="app.log", filemode="a", format="%(asctime)s)"
+                    " - %(name)s - %(levelname)s - %(message)s")
 
 
 # If modifying these scopes, delete the file token.pickle.
@@ -43,7 +48,7 @@ def authorization():
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
-    service = build('gmail', 'v1', credentials=creds)
+    service = build('gmail', 'v1', credentials=creds, cache_discovery=False)
     return service
 
 
@@ -111,8 +116,7 @@ class Status(object):
         self.quantity = quantity
         self.asset = "$" + asset
         self.price = price
-        self.message = message = "This tweet might have been automatically sent via code found here: \n" \
-                                 "github.com/xomarquez27/tweet-schwab-trades"
+        self.message = message = "This tweet might have been automatically sent. Check out my pinned tweet to learn how."
 
 
     def __str__(self):
@@ -201,7 +205,7 @@ def main():
     # If email_ids.txt file does not exist i.e. first time running the program
     if not os.path.exists(file_location):
         with open("email_ids.txt", "w") as file:
-            for msg_id in batch[0:6]:
+            for msg_id in batch[9::-1]:
                 message = GetMessage(key, "me", msg_id['id'])
                 if "Trade Notification" in message['snippet']:
                     raw_data = extractor(message)
@@ -209,17 +213,22 @@ def main():
                     content = parser(*valid_b64)
                     tweet = Status(*content)
                     # Send to Twitter
-                    twitter.update_status(tweet)
-                    #print(tweet)
+                    try:
+                        twitter.update_status(tweet)
+                    except tweepy.error.TweepError:
+                        logging.error(f"The following tweet failed {tweet}", exc_info=True)
+                    finally:
+                        print(tweet)
                 else:
                     pass
+
                 file.write(msg_id["id"] + "\n")
     else:
         old_batch = []
         with open("email_ids.txt", "r") as file:
             for msg_id in file:
                 old_batch.append(msg_id)
-            for msg_id in batch[4::-1]:
+            for msg_id in batch[9::-1]:
                 if msg_id in old_batch:
                     pass
                 else:
@@ -236,6 +245,8 @@ def main():
                         del old_batch[-1]
                     else:
                         pass
+        
+
         with open("email_ids.txt", "w") as file:
             for msg in old_batch:
                 file.write(msg_id["id"] + "\n")
@@ -244,6 +255,5 @@ def main():
 if __name__ == '__main__':
     key = authorization()
     batch = ListMessagesMatchingQuery(key, "me", query)
-    payload = []
     twitter = twitter_auth()
     main()
