@@ -204,8 +204,8 @@ def main():
     """Puts the previous functions into work by combining them to extract the email, parse it and tweet it."""
     # If email_ids.txt file does not exist i.e. first time running the program
     if not os.path.exists(file_location):
-        with open("email_ids.txt", "w") as file:
-            for msg_id in batch[9::-1]:
+        with open("email_ids.txt", "w") as local:
+            for msg_id in inbox[9::-1]:
                 message = GetMessage(key, "me", msg_id['id'])
                 if "Trade Notification" in message['snippet']:
                     raw_data = extractor(message)
@@ -222,14 +222,14 @@ def main():
                 else:
                     pass
 
-                file.write(msg_id["id"] + "\n")
+                local.write(msg_id["id"] + "\n")
     else:
-        old_batch = []
-        with open("email_ids.txt", "r") as file:
-            for msg_id in file:
-                old_batch.append(msg_id)
-            for msg_id in batch[9::-1]:
-                if msg_id in old_batch:
+        sent = []
+        with open("email_ids.txt", "r") as local:
+            for msg_id in local:
+                sent.append(msg_id)
+            for msg_id in inbox[9::-1]:
+                if msg_id in sent:
                     pass
                 else:
                     message = GetMessage(key, "me", msg_id['id'])
@@ -241,19 +241,19 @@ def main():
                         # Send to Twitter
                         twitter.update_status(tweet)
                         print(tweet)
-                        old_batch.insert(0, msg_id)
-                        del old_batch[-1]
+                        sent.insert(0, msg_id)
+                        del sent[-1]
                     else:
                         pass
         
 
-        with open("email_ids.txt", "w") as file:
-            for msg in old_batch:
-                file.write(msg_id["id"] + "\n")
+        with open("email_ids.txt", "w") as local:
+            for msg in sent:
+                local.write(msg_id["id"] + "\n")
 
 
 if __name__ == '__main__':
     key = authorization()
-    batch = ListMessagesMatchingQuery(key, "me", query)
+    inbox = ListMessagesMatchingQuery(key, "me", query)
     twitter = twitter_auth()
     main()
