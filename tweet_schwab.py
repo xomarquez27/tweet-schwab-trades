@@ -219,34 +219,37 @@ def main():
                         logging.error(f"The following tweet failed {tweet}", exc_info=True)
                     finally:
                         print(tweet)
+                        local.write(msg_id["id"] + "\n")
                 else:
                     pass
 
-                local.write(msg_id["id"] + "\n")
     else:
         sent = []
         with open("email_ids.txt", "r") as local:
             for msg_id in local:
                 sent.append(msg_id)
-            for msg_id in inbox[9::-1]:
-                if msg_id in sent:
-                    pass
-                else:
-                    message = GetMessage(key, "me", msg_id['id'])
-                    if "Trade Notification" in message['snippet']:
-                        raw_data = extractor(message)
-                        valid_b64 = b64_validator(*raw_data)
-                        content = parser(*valid_b64)
-                        tweet = Status(*content)
-                        # Send to Twitter
+
+        for msg_id in inbox[9::-1]:
+            if msg_id in sent:
+                pass
+            else:
+                message = GetMessage(key, "me", msg_id['id'])
+                if "Trade Notification" in message['snippet']:
+                    raw_data = extractor(message)
+                    valid_b64 = b64_validator(*raw_data)
+                    content = parser(*valid_b64)
+                    tweet = Status(*content)
+                    # Send to Twitter
+                    try:
                         twitter.update_status(tweet)
-                        print(tweet)
+                    except tweepy.error.TweepError:
+                        logging.error(f"The following tweet failed {tweet}", exc_info=True)
+                    finally:
                         sent.insert(0, msg_id)
                         del sent[-1]
-                    else:
-                        pass
+                else:
+                    pass
         
-
         with open("email_ids.txt", "w") as local:
             for msg in sent:
                 local.write(msg_id["id"] + "\n")
