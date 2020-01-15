@@ -11,6 +11,7 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from apiclient import errors
+from time import strftime
 
 
 logging.basicConfig(filename="app.log", filemode="a", format="%(asctime)s)"
@@ -116,14 +117,14 @@ class Status(object):
         self.quantity = quantity
         self.asset = "$" + asset
         self.price = price
-        self.message = message = "This tweet might have been automatically sent. Check out my pinned tweet to learn how."
+        self.message = message = "This tweet was automated. Check out my pinned tweet to learn how."
 
 
     def __str__(self):
-        return f"{self.date}:\n"\
-                f"{self.action} {self.quantity} {self.asset}\n"\
-                f"{self.price} per contract. \n\n"\
-                f"{self.message}"
+        return f"{self.action} {self.quantity} {self.asset}\n"\
+        		f"on{self.date}\n"\
+        		f"at {self.price} per contract. \n\n"\
+        		f"{self.message}"
 
 
 def extractor(msg):
@@ -205,7 +206,7 @@ def main():
     # If email_ids.txt file does not exist i.e. first time running the program
     if not os.path.exists(file_location):
         with open("email_ids.txt", "w") as local:
-            for msg_id in inbox[9::-1]:
+            for msg_id in inbox[19::-1]:
                 message = GetMessage(key, "me", msg_id['id'])
                 if "Trade Notification" in message['snippet']:
                     raw_data = extractor(message)
@@ -214,24 +215,24 @@ def main():
                     tweet = Status(*content)
                     # Send to Twitter
                     try:
+                    	# print(tweet)
                         twitter.update_status(tweet)
                     except tweepy.error.TweepError:
-                        logging.error(f"The following tweet failed {tweet}", exc_info=True)
+                        logging.error(f"{strftime('%Y-%m-%d %H:%M')}: The following tweet failed {tweet}", exc_info=True)
                     finally:
                         print(tweet)
-                        local.write(msg_id["id"] + "\n")
+                        local.write(f'{msg_id["id"]}\n')
                 else:
                     pass
 
     else:
         sent = []
         with open("email_ids.txt", "r") as local:
-            for msg_id in local:
-                sent.append(msg_id)
-
-        for msg_id in inbox[9::-1]:
-            if msg_id in sent:
-                pass
+            for msg in local:
+                sent.append(msg)
+        for msg_id in inbox[19::-1]:
+            if msg_id["id"] in sent:
+            	pass
             else:
                 message = GetMessage(key, "me", msg_id['id'])
                 if "Trade Notification" in message['snippet']:
@@ -241,18 +242,17 @@ def main():
                     tweet = Status(*content)
                     # Send to Twitter
                     try:
+                    	# print(tweet)
                         twitter.update_status(tweet)
                     except tweepy.error.TweepError:
-                        logging.error(f"The following tweet failed {tweet}", exc_info=True)
+                        logging.error(f"{strftime('%Y-%m-%d %H:%M')}: The following tweet failed {tweet}", exc_info=True)
                     finally:
-                        sent.insert(0, msg_id)
-                        del sent[-1]
+                        sent.append(msg_id["id"])
                 else:
                     pass
-        
-        with open("email_ids.txt", "w") as local:
-            for msg in sent:
-                local.write(msg_id["id"] + "\n")
+        with open("email_ids.txt", "w") as out:
+            for msg_id in sent[:20]:
+            	out.write(f'{msg_id}')
 
 
 if __name__ == '__main__':
