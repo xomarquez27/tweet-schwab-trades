@@ -117,12 +117,12 @@ class Status(object):
         self.quantity = quantity
         self.asset = "$" + asset
         self.price = price
-        self.message = message = "This tweet was automated. Check out my pinned tweet to learn how."
+        self.message = message = "This tweet was automated."
 
 
     def __str__(self):
         return f"{self.action} {self.quantity} {self.asset}\n"\
-        		f"on{self.date}\n"\
+        		f"on {self.date}\n"\
         		f"at {self.price} per contract. \n\n"\
         		f"{self.message}"
 
@@ -230,7 +230,7 @@ def main():
         with open("email_ids.txt", "r") as local:
             for msg in local:
                 sent.append(msg)
-        for msg_id in inbox[19::-1]:
+        for msg_id in inbox[9::-1]:
             if msg_id["id"] in sent:
             	pass
             else:
@@ -251,7 +251,7 @@ def main():
                 else:
                     pass
         with open("email_ids.txt", "w") as out:
-            for msg_id in sent[:20]:
+            for msg_id in sent[:10]:
             	out.write(f'{msg_id}')
 
 
